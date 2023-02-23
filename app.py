@@ -1,4 +1,5 @@
 from flask import Flask, request
+from flask_smorest import abort
 from db import stores, details
 import uuid
 
@@ -25,8 +26,21 @@ def create_store():
 @app.post("/item")
 def create_item():
     item_data = request.get_json()
+    if (
+        "first" not in item_data
+        or "store_id" not in item_data
+        or "second" not in item_data
+    ):
+        abort(400, message="Bad request. Ensure 'first', 'second', and 'store_id' are included in the JSON payload.")
+    for item in details.values():
+        if (
+            item_data["first"] == item["first"]
+            and item_data["store_id"] == item["store_id"]
+        ):
+            abort(400, message="Item already exists.")
+        
     if item_data["store_id"] not in stores:
-        return {"message": "Store not found"}, 404
+        abort(404, message="Item not found.")
     item_id = uuid.uuid4().hex
     item = {**item_data, "id": item_id}
     details[item_id] = item
@@ -37,9 +51,7 @@ def get_store(store_id):
     try:
         return stores[store_id]
     except KeyError:
-        return {"message": "Store not found"}, 404
-    
-
+        abort(404, message="Store not found.")
 
 @app.get("/store/<string:item_id>")
 def get_items(item_id):
